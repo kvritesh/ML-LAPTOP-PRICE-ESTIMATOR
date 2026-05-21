@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>LaptopIQ — Price Predictor</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <style>
+    /* ── RESET & BASE ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0b0f1a;
+      --surface:   #111827;
+      --card:      rgba(255,255,255,0.04);
+      --border:    rgba(255,255,255,0.08);
+      --accent:    #38bdf8;
+      --accent2:   #818cf8;
+      --text:      #e2e8f0;
+      --muted:     #64748b;
+      --success:   #34d399;
+      --radius:    14px;
+      --font-head: 'Syne', sans-serif;
+      --font-body: 'DM Sans', sans-serif;
+      --font-mono: 'DM Mono', monospace;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-body);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ── ANIMATED BACKGROUND ── */
+    .bg-grid {
+      position: fixed; inset: 0; z-index: 0; pointer-events: none;
+      background-image:
+        linear-gradient(rgba(56,189,248,.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(56,189,248,.03) 1px, transparent 1px);
+      background-size: 48px 48px;
+    }
+
+    .bg-glow {
+      position: fixed; z-index: 0; pointer-events: none;
+      border-radius: 50%; filter: blur(120px); opacity: .18;
+    }
+    .bg-glow-1 {
+      width: 600px; height: 600px;
+      background: radial-gradient(circle, #38bdf8 0%, transparent 70%);
+      top: -200px; left: -200px;
+      animation: drift1 12s ease-in-out infinite alternate;
+    }
+    .bg-glow-2 {
+      width: 500px; height: 500px;
+      background: radial-gradient(circle, #818cf8 0%, transparent 70%);
+      bottom: -150px; right: -150px;
+      animation: drift2 15s ease-in-out infinite alternate;
+    }
+    @keyframes drift1 { to { transform: translate(80px, 60px); } }
+    @keyframes drift2 { to { transform: translate(-60px, -80px); } }
+
+    /* ── LAYOUT ── */
+    .wrapper {
+      position: relative; z-index: 1;
+      max-width: 960px; margin: 0 auto;
+      padding: 60px 24px 80px;
+    }
+
+    /* ── HEADER ── */
+    header {
+      text-align: center;
+      margin-bottom: 56px;
+      animation: fadeUp .7s ease both;
+    }
+
+    .badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: rgba(56,189,248,.1);
+      border: 1px solid rgba(56,189,248,.25);
+      color: var(--accent);
+      font-family: var(--font-mono);
+      font-size: .72rem;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      padding: 5px 14px;
+      border-radius: 999px;
+      margin-bottom: 20px;
+    }
+    .badge::before { content: '◉'; font-size: .6rem; animation: pulse 2s infinite; }
+    @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:.3; } }
+
+    h1 {
+      font-family: var(--font-head);
+      font-size: clamp(2.4rem, 6vw, 4rem);
+      font-weight: 800;
+      line-height: 1.1;
+      background: linear-gradient(135deg, #fff 30%, var(--accent) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .subtitle {
+      margin-top: 12px;
+      color: var(--muted);
+      font-size: 1.05rem;
+      font-weight: 300;
+      letter-spacing: .01em;
+    }
+
+    /* ── PREDICTION BANNER ── */
+    .result-banner {
+      background: linear-gradient(135deg, rgba(52,211,153,.12), rgba(56,189,248,.08));
+      border: 1px solid rgba(52,211,153,.3);
+      border-radius: var(--radius);
+      padding: 20px 28px;
+      margin-bottom: 36px;
+      display: flex; align-items: center; gap: 16px;
+      animation: slideIn .5s cubic-bezier(.22,1,.36,1) both;
+    }
+    @keyframes slideIn { from { opacity:0; transform:translateY(-12px); } }
+
+    .result-icon {
+      font-size: 2rem;
+      flex-shrink: 0;
+    }
+
+    .result-label {
+      font-family: var(--font-mono);
+      font-size: .7rem;
+      text-transform: uppercase;
+      letter-spacing: .1em;
+      color: var(--success);
+      margin-bottom: 3px;
+    }
+
+    .result-value {
+      font-family: var(--font-head);
+      font-size: 1.8rem;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    /* ── CARD ── */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 40px 40px;
+      backdrop-filter: blur(12px);
+      animation: fadeUp .7s ease .1s both;
+    }
+
+    /* ── SECTION TITLES ── */
+    .section-label {
+      font-family: var(--font-mono);
+      font-size: .72rem;
+      text-transform: uppercase;
+      letter-spacing: .14em;
+      color: var(--accent);
+      margin-bottom: 18px;
+      display: flex; align-items: center; gap: 10px;
+    }
+    .section-label::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: linear-gradient(90deg, var(--border), transparent);
+    }
+
+    /* ── GRID ── */
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; }
+    .span-2 { grid-column: span 2; }
+    .span-3 { grid-column: span 3; }
+
+    @media (max-width: 640px) {
+      .grid-2, .grid-3 { grid-template-columns: 1fr; }
+      .span-2, .span-3 { grid-column: span 1; }
+      .card { padding: 24px 20px; }
+    }
+
+    /* ── FORM GROUPS ── */
+    .form-section { margin-bottom: 32px; }
+
+    .field { display: flex; flex-direction: column; gap: 7px; }
+
+    label {
+      font-size: .82rem;
+      font-weight: 500;
+      color: #94a3b8;
+      letter-spacing: .02em;
+    }
+
+    select, input[type="number"] {
+      background: rgba(255,255,255,.05);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      color: var(--text);
+      font-family: var(--font-body);
+      font-size: .95rem;
+      padding: 11px 14px;
+      width: 100%;
+      outline: none;
+      transition: border-color .2s, box-shadow .2s, background .2s;
+      appearance: none;
+      -webkit-appearance: none;
+      cursor: pointer;
+    }
+
+    select {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+      padding-right: 38px;
+    }
+
+    select:focus, input[type="number"]:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(56,189,248,.12);
+      background: rgba(56,189,248,.05);
+    }
+
+    select:hover, input[type="number"]:hover {
+      border-color: rgba(255,255,255,.15);
+    }
+
+    select option {
+      background: #1e293b;
+      color: var(--text);
+    }
+
+    input[type="number"]::-webkit-inner-spin-button,
+    input[type="number"]::-webkit-outer-spin-button { opacity: 1; }
+
+    /* ── DIVIDER ── */
+    .divider {
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--border), transparent);
+      margin: 28px 0;
+    }
+
+    /* ── SUBMIT ── */
+    .submit-row {
+      display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+      margin-top: 8px;
+    }
+
+    .btn-predict {
+      flex: 1; min-width: 200px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border: none;
+      border-radius: 12px;
+      color: #0b0f1a;
+      cursor: pointer;
+      font-family: var(--font-head);
+      font-size: 1rem;
+      font-weight: 700;
+      letter-spacing: .03em;
+      padding: 15px 32px;
+      position: relative;
+      overflow: hidden;
+      transition: transform .15s, box-shadow .15s, filter .15s;
+    }
+
+    .btn-predict::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: linear-gradient(135deg, rgba(255,255,255,.2), transparent);
+      opacity: 0;
+      transition: opacity .2s;
+    }
+
+    .btn-predict:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(56,189,248,.35); filter: brightness(1.07); }
+    .btn-predict:hover::before { opacity: 1; }
+    .btn-predict:active { transform: translateY(0); }
+
+    .btn-reset {
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      color: var(--muted);
+      cursor: pointer;
+      font-family: var(--font-body);
+      font-size: .9rem;
+      padding: 15px 24px;
+      transition: border-color .2s, color .2s;
+    }
+    .btn-reset:hover { border-color: rgba(255,255,255,.2); color: var(--text); }
+
+    .hint-text {
+      font-size: .78rem;
+      color: var(--muted);
+      margin-top: 12px;
+      text-align: center;
+    }
+
+    /* ── FOOTER ── */
+    footer {
+      text-align: center;
+      margin-top: 48px;
+      color: var(--muted);
+      font-size: .8rem;
+      animation: fadeUp .7s ease .3s both;
+    }
+    footer span { color: var(--accent); }
+
+    @keyframes fadeUp { from { opacity:0; transform:translateY(20px); } }
+  </style>
+</head>
+<body>
+
+  <div class="bg-grid"></div>
+  <div class="bg-glow bg-glow-1"></div>
+  <div class="bg-glow bg-glow-2"></div>
+
+  <div class="wrapper">
+
+    <header>
+      <div class="badge">ML-Powered Estimator</div>
+      <h1>Laptop Price Predictor</h1>
+      <p class="subtitle">Configure your laptop specs and get an instant price estimate powered by a Random Forest model.</p>
+    </header>
+
+    {% if prediction_text %}
+    <div class="result-banner">
+      <div class="result-icon">💰</div>
+      <div>
+        <div class="result-label">Estimated Price (INR)</div>
+        <div class="result-value">{{ prediction_text }}</div>
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="card">
+      <form method="POST" action="/predict">
+
+        <!-- Brand & Type -->
+        <div class="form-section">
+          <div class="section-label">Brand &amp; Category</div>
+          <div class="grid-2">
+            <div class="field">
+              <label for="company">Manufacturer</label>
+              <select id="company" name="company" required>
+                <option value="" disabled selected>Select brand…</option>
+                <option>Acer</option>
+                <option>Apple</option>
+                <option>Asus</option>
+                <option>Chuwi</option>
+                <option>Dell</option>
+                <option>Fujitsu</option>
+                <option>Google</option>
+                <option>HP</option>
+                <option>Huawei</option>
+                <option>LG</option>
+                <option>Lenovo</option>
+                <option>MSI</option>
+                <option>Mediacom</option>
+                <option>Microsoft</option>
+                <option>Razer</option>
+                <option>Samsung</option>
+                <option>Toshiba</option>
+                <option>Vero</option>
+                <option>Xiaomi</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="typename">Laptop Type</label>
+              <select id="typename" name="typename" required>
+                <option value="" disabled selected>Select type…</option>
+                <option>2 in 1 Convertible</option>
+                <option>Gaming</option>
+                <option>Netbook</option>
+                <option>Notebook</option>
+                <option>Ultrabook</option>
+                <option>Workstation</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <!-- Hardware specs -->
+        <div class="form-section">
+          <div class="section-label">Hardware Specs</div>
+          <div class="grid-3">
+            <div class="field">
+              <label for="ram">RAM (GB)</label>
+              <input type="number" id="ram" name="ram" placeholder="e.g. 8" min="2" max="64" required>
+            </div>
+            <div class="field">
+              <label for="weight">Weight (kg)</label>
+              <input type="number" id="weight" name="weight" placeholder="e.g. 1.5" step="0.01" min="0.5" max="5" required>
+            </div>
+            <div class="field">
+              <label for="memory">Storage</label>
+              <select id="memory" name="memory" required>
+                <option value="" disabled selected>Select storage…</option>
+                <option>8GB SSD</option>
+                <option>16GB Flash Storage</option>
+                <option>16GB SSD</option>
+                <option>32GB Flash Storage</option>
+                <option>32GB HDD</option>
+                <option>32GB SSD</option>
+                <option>64GB Flash Storage</option>
+                <option>64GB Flash Storage +  1TB HDD</option>
+                <option>64GB SSD</option>
+                <option>128GB Flash Storage</option>
+                <option>128GB HDD</option>
+                <option>128GB SSD</option>
+                <option>128GB SSD +  1TB HDD</option>
+                <option>128GB SSD +  2TB HDD</option>
+                <option>180GB SSD</option>
+                <option>240GB SSD</option>
+                <option>256GB Flash Storage</option>
+                <option>256GB SSD</option>
+                <option>256GB SSD +  1.0TB Hybrid</option>
+                <option>256GB SSD +  1TB HDD</option>
+                <option>256GB SSD +  256GB SSD</option>
+                <option>256GB SSD +  2TB HDD</option>
+                <option>256GB SSD +  500GB HDD</option>
+                <option>500GB HDD</option>
+                <option>508GB Hybrid</option>
+                <option>512GB Flash Storage</option>
+                <option>512GB SSD</option>
+                <option>512GB SSD +  1.0TB Hybrid</option>
+                <option>512GB SSD +  1TB HDD</option>
+                <option>512GB SSD +  256GB SSD</option>
+                <option>512GB SSD +  2TB HDD</option>
+                <option>512GB SSD +  512GB SSD</option>
+                <option>1.0TB HDD</option>
+                <option>1.0TB Hybrid</option>
+                <option>1TB HDD</option>
+                <option>1TB HDD +  1TB HDD</option>
+                <option>1TB SSD</option>
+                <option>1TB SSD +  1TB HDD</option>
+                <option>2TB HDD</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <!-- CPU & GPU -->
+        <div class="form-section">
+          <div class="section-label">Processor &amp; Graphics</div>
+          <div class="grid-2">
+            <div class="field span-2">
+              <label for="cpu">CPU</label>
+              <select id="cpu" name="cpu" required>
+                <option value="" disabled selected>Select processor…</option>
+                <optgroup label="Intel Core i7">
+                  <option>Intel Core i7 8650U 1.9GHz</option>
+                  <option>Intel Core i7 8550U 1.8GHz</option>
+                  <option>Intel Core i7 7820HQ 2.9GHz</option>
+                  <option>Intel Core i7 7820HK 2.9GHz</option>
+                  <option>Intel Core i7 7700HQ 2.8GHz</option>
+                  <option>Intel Core i7 7700HQ 2.7GHz</option>
+                  <option>Intel Core i7 7660U 2.5GHz</option>
+                  <option>Intel Core i7 7600U 2.8GHz</option>
+                  <option>Intel Core i7 7560U 2.4GHz</option>
+                  <option>Intel Core i7 7500U 2.7GHz</option>
+                  <option>Intel Core i7 7500U 2.5GHz</option>
+                  <option>Intel Core i7 7Y75 1.3GHz</option>
+                  <option>Intel Core i7 6920HQ 2.9GHz</option>
+                  <option>Intel Core i7 6820HQ 2.7GHz</option>
+                  <option>Intel Core i7 6820HK 2.7GHz</option>
+                  <option>Intel Core i7 6700HQ 2.6GHz</option>
+                  <option>Intel Core i7 6600U 2.6GHz</option>
+                  <option>Intel Core i7 6560U 2.2GHz</option>
+                  <option>Intel Core i7 6500U 2.5GHz</option>
+                  <option>Intel Core i7 6500U 2.50GHz</option>
+                  <option>Intel Core i7 2.9GHz</option>
+                  <option>Intel Core i7 2.8GHz</option>
+                  <option>Intel Core i7 2.7GHz</option>
+                  <option>Intel Core i7 2.2GHz</option>
+                </optgroup>
+                <optgroup label="Intel Core i5">
+                  <option>Intel Core i5 8250U 1.6GHz</option>
+                  <option>Intel Core i5 7500U 2.7GHz</option>
+                  <option>Intel Core i5 7440HQ 2.8GHz</option>
+                  <option>Intel Core i5 7300U 2.6GHz</option>
+                  <option>Intel Core i5 7300HQ 2.5GHz</option>
+                  <option>Intel Core i5 7200U 2.7GHz</option>
+                  <option>Intel Core i5 7200U 2.70GHz</option>
+                  <option>Intel Core i5 7200U 2.5GHz</option>
+                  <option>Intel Core i5 7200U 2.50GHz</option>
+                  <option>Intel Core i5 7Y57 1.2GHz</option>
+                  <option>Intel Core i5 7Y54 1.2GHz</option>
+                  <option>Intel Core i5 6440HQ 2.6GHz</option>
+                  <option>Intel Core i5 6300U 2.4GHz</option>
+                  <option>Intel Core i5 6300HQ 2.3GHz</option>
+                  <option>Intel Core i5 6260U 1.8GHz</option>
+                  <option>Intel Core i5 6200U 2.3GHz</option>
+                  <option>Intel Core i5 3.1GHz</option>
+                  <option>Intel Core i5 2.9GHz</option>
+                  <option>Intel Core i5 2.3GHz</option>
+                  <option>Intel Core i5 2.0GHz</option>
+                  <option>Intel Core i5 1.8GHz</option>
+                  <option>Intel Core i5 1.6GHz</option>
+                  <option>Intel Core i5 1.3GHz</option>
+                </optgroup>
+                <optgroup label="Intel Core i3">
+                  <option>Intel Core i3 7130U 2.7GHz</option>
+                  <option>Intel Core i3 7100U 2.4GHz</option>
+                  <option>Intel Core i3 6100U 2.3GHz</option>
+                  <option>Intel Core i3 6100U 2.1GHz</option>
+                  <option>Intel Core i3 6006U 2GHz</option>
+                  <option>Intel Core i3 6006U 2.2GHz</option>
+                  <option>Intel Core i3 6006U 2.0GHz</option>
+                </optgroup>
+                <optgroup label="Intel Core M">
+                  <option>Intel Core M m3-7Y30 2.2GHz</option>
+                  <option>Intel Core M m7-6Y75 1.2GHz</option>
+                  <option>Intel Core M m3 1.2GHz</option>
+                  <option>Intel Core M 1.2GHz</option>
+                  <option>Intel Core M 1.1GHz</option>
+                </optgroup>
+                <optgroup label="Intel Xeon">
+                  <option>Intel Xeon E3-1535M v6 3.1GHz</option>
+                  <option>Intel Xeon E3-1535M v5 2.9GHz</option>
+                  <option>Intel Xeon E3-1505M V6 3GHz</option>
+                </optgroup>
+                <optgroup label="Intel Pentium / Celeron / Atom">
+                  <option>Intel Pentium Dual Core 4405U 2.1GHz</option>
+                  <option>Intel Pentium Dual Core N4200 1.1GHz</option>
+                  <option>Intel Celeron Dual Core N3060 1.6GHz</option>
+                  <option>Intel Celeron Dual Core N3350 1.1GHz</option>
+                  <option>Intel Celeron Quad Core N3450 1.1GHz</option>
+                  <option>Intel Atom x5-Z8350 1.44GHz</option>
+                </optgroup>
+                <optgroup label="AMD Ryzen / FX">
+                  <option>AMD Ryzen 1700 3GHz</option>
+                  <option>AMD Ryzen 1600 3.2GHz</option>
+                  <option>AMD FX 9830P 3GHz</option>
+                  <option>AMD FX 8800P 2.1GHz</option>
+                </optgroup>
+                <optgroup label="AMD A-Series / E-Series">
+                  <option>AMD A12-Series 9720P 2.7GHz</option>
+                  <option>AMD A10-Series 9620P 2.5GHz</option>
+                  <option>AMD A9-Series 9420 3GHz</option>
+                  <option>AMD A6-Series 9220 2.5GHz</option>
+                  <option>AMD E-Series 9000 2.2GHz</option>
+                  <option>AMD E-Series 7110 1.8GHz</option>
+                </optgroup>
+              </select>
+            </div>
+
+            <div class="field span-2">
+              <label for="gpu">GPU</label>
+              <select id="gpu" name="gpu" required>
+                <option value="" disabled selected>Select graphics card…</option>
+                <optgroup label="Nvidia GTX / RTX">
+                  <option>Nvidia GeForce GTX 1080</option>
+                  <option>Nvidia GeForce GTX 1070</option>
+                  <option>Nvidia GeForce GTX 1070M</option>
+                  <option>Nvidia GeForce GTX 1060</option>
+                  <option>Nvidia GeForce GTX 1050 Ti</option>
+                  <option>Nvidia GeForce GTX 1050</option>
+                  <option>Nvidia GeForce GTX 980M</option>
+                  <option>Nvidia GeForce GTX 970M</option>
+                  <option>Nvidia GeForce GTX 965M</option>
+                  <option>Nvidia GeForce GTX 960M</option>
+                  <option>Nvidia GeForce GTX 950M</option>
+                  <option>Nvidia GeForce GTX 940MX</option>
+                  <option>Nvidia GeForce GTX 940M</option>
+                  <option>Nvidia GTX 980 SLI</option>
+                </optgroup>
+                <optgroup label="Nvidia GeForce / MX">
+                  <option>Nvidia GeForce MX150</option>
+                  <option>Nvidia GeForce MX130</option>
+                  <option>Nvidia GeForce 940MX</option>
+                  <option>Nvidia GeForce 940M</option>
+                  <option>Nvidia GeForce 930MX</option>
+                  <option>Nvidia GeForce 930M</option>
+                  <option>Nvidia GeForce 920MX</option>
+                  <option>Nvidia GeForce 920M</option>
+                  <option>Nvidia GeForce 920</option>
+                  <option>Nvidia GeForce 150MX</option>
+                </optgroup>
+                <optgroup label="Nvidia Quadro">
+                  <option>Nvidia Quadro M3000M</option>
+                  <option>Nvidia Quadro M2200M</option>
+                  <option>Nvidia Quadro M2200</option>
+                  <option>Nvidia Quadro M2000M</option>
+                  <option>Nvidia Quadro M1200</option>
+                  <option>Nvidia Quadro M1000M</option>
+                  <option>Nvidia Quadro M620M</option>
+                  <option>Nvidia Quadro M620</option>
+                  <option>Nvidia Quadro M520M</option>
+                  <option>Nvidia Quadro M500M</option>
+                </optgroup>
+                <optgroup label="AMD Radeon">
+                  <option>AMD Radeon RX 580</option>
+                  <option>AMD Radeon RX 560</option>
+                  <option>AMD Radeon RX 550</option>
+                  <option>AMD Radeon RX 540</option>
+                  <option>AMD Radeon Pro 560</option>
+                  <option>AMD Radeon Pro 555</option>
+                  <option>AMD Radeon Pro 455</option>
+                  <option>AMD Radeon R9 M385</option>
+                  <option>AMD Radeon R7 M465</option>
+                  <option>AMD Radeon R7 M460</option>
+                  <option>AMD Radeon R7 M445</option>
+                  <option>AMD Radeon R7 M440</option>
+                  <option>AMD Radeon R7</option>
+                  <option>AMD Radeon R5 M430</option>
+                  <option>AMD Radeon R5 M420</option>
+                  <option>AMD Radeon R5 520</option>
+                  <option>AMD Radeon R5</option>
+                  <option>AMD Radeon R4</option>
+                  <option>AMD Radeon 540</option>
+                  <option>AMD Radeon 530</option>
+                  <option>AMD Radeon 520</option>
+                  <option>AMD FirePro W6150M</option>
+                  <option>AMD FirePro W5130M</option>
+                  <option>AMD FirePro W4190M</option>
+                </optgroup>
+                <optgroup label="Intel Integrated">
+                  <option>Intel UHD Graphics 620</option>
+                  <option>Intel Iris Plus Graphics 650</option>
+                  <option>Intel Iris Plus Graphics 640</option>
+                  <option>Intel Iris Pro Graphics</option>
+                  <option>Intel Iris Graphics 550</option>
+                  <option>Intel Iris Graphics 540</option>
+                  <option>Intel HD Graphics 630</option>
+                  <option>Intel HD Graphics 620</option>
+                  <option>Intel HD Graphics 615</option>
+                  <option>Intel HD Graphics 540</option>
+                  <option>Intel HD Graphics 530</option>
+                  <option>Intel HD Graphics 520</option>
+                  <option>Intel HD Graphics 515</option>
+                  <option>Intel HD Graphics 510</option>
+                  <option>Intel HD Graphics 505</option>
+                  <option>Intel HD Graphics 500</option>
+                  <option>Intel HD Graphics 405</option>
+                  <option>Intel HD Graphics 400</option>
+                  <option>Intel HD Graphics 6000</option>
+                  <option>Intel HD Graphics</option>
+                  <option>Intel Graphics 620</option>
+                </optgroup>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <!-- OS -->
+        <div class="form-section">
+          <div class="section-label">Operating System</div>
+          <div class="grid-2">
+            <div class="field span-2">
+              <label for="opsys">OS</label>
+              <select id="opsys" name="opsys" required>
+                <option value="" disabled selected>Select operating system…</option>
+                <option>Windows 10</option>
+                <option>Windows 10 S</option>
+                <option>Windows 7</option>
+                <option>macOS</option>
+                <option>Mac OS X</option>
+                <option>Linux</option>
+                <option>Chrome OS</option>
+                <option>Android</option>
+                <option>No OS</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <!-- Submit -->
+        <div class="submit-row">
+          <button type="submit" class="btn-predict">⚡ Predict Price</button>
+          <button type="reset" class="btn-reset">Reset</button>
+        </div>
+        <p class="hint-text">Prices are estimated in EUR and converted to INR at ₹90/€</p>
+
+      </form>
+    </div>
+
+    <footer>
+      Built with <span>♥</span> using Flask · Random Forest · scikit-learn
+    </footer>
+
+  </div>
+
+</body>
+</html>
